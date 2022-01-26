@@ -550,3 +550,65 @@ make_dat_count_region = function(dat_count) {
     
     return(ret)
 }
+
+
+# converts bit string to region-set
+# for example, converts "1100" to "A+B"
+bitstr_to_regset = function(s,n) {
+    rs = n[ which(as.integer(strsplit(s, split="")[[1]])==1) ]
+    rs = paste(rs, collapse="+")
+    return(rs)
+}
+
+# process states and ranges
+get_used_states = function(phy, bitset) {
+    dat = phy@data[, c("end_state_1", "end_state_2", "end_state_3", "start_state_1", "start_state_2", "start_state_3")]
+    vec = as.numeric( unlist(dat) )
+    vec = sort(unique(vec[ !is.na(vec) ]))
+    #print(vec)
+    
+    # container for ranges sorted by # regions
+    n_reg = length( strsplit( bitset[ vec[1]+1 ], split="" )[[1]] )
+    ret = list()
+    for (i in 1:n_reg) {
+        ret[[i]] = list()
+    }
+
+    for (i in 1:length(vec)) {
+        range_n = vec[i] + 1 # convert to base-1 range-states
+        range_01 = bitset[ range_n ]
+        idx = sum( as.numeric( strsplit( range_01, split="" )[[1]] ) )
+        #print(idx)
+        ret[[idx]] = c( ret[[idx]], range_n )
+    }
+    
+    return(ret)
+    #return(sort(unique(vec)))
+}
+
+
+
+# adds epoch boxes to plots
+add_epoch_times <- function( p, max_age, dy_bars, dy_text ) {
+    
+    max_x = max(p$data$x)
+    max_y = max(p$data$y)
+    epoch_names = c("Late\nCretaceous","Paleocene","Early\nEocene","Mid/Late\nEocene","Oligocene","Early\nMiocene","Mid/Late\nMiocene","Recent")
+  
+
+    x_pos = max_x-c(max_age, 65, 56, 48, 33.9, 23, 16, 5.3, 0)
+    y_pos = rep(max_y, length(x_pos))
+    x_pos_mid = ( x_pos[1:(length(x_pos)-1)] + x_pos[2:length(x_pos)] ) / 2 
+
+    for (k in 2:(length(x_pos))) {
+        box_col = "gray92"
+        if (k %% 2 == 0) box_col = "white"
+        box = geom_rect( xmin=x_pos[k-1], xmax=x_pos[k], ymin=dy_bars, ymax=y_pos[k], fill=box_col )
+        p = append_layers(p, box, position = "bottom")
+    }
+    for (k in 1:length(epoch_names)) {
+        p = p + annotate( geom="text", label=epoch_names[k], x=x_pos_mid[k], y=dy_text, hjust=0.5, size=3.25)
+    }
+    return(p)
+
+}
