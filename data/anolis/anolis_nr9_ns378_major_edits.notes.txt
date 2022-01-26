@@ -1,0 +1,4 @@
+This dataset differs from `anolis_nr9_ns379` in three ways:
+- *A. sagrei* was originally coded as present in only region G (Cuba+Caymans+Jamaica), and is now coded as additionally present in region H (the Bahamas).
+- *A. allisoni* was originally coded as present only in region G (Cuba+Caymans+Jamaica), and is now coded as additionally present in region A (Upper Central America and associated coastal islands) due to its presence in coastal islands of Honduras (Cayos Cochinos) and Belize (Half Moon Caye).
+- *A. roosevelti*, a Puerto Rican (Viques) crown-giant, was pruned from the dataset because of its unexpected phylogenetic placement as sister to a Cuban clade that includes another crown-giant, *A. ricordii*. We suspect that, because *A. roosevelti* is recently extinct and was phylogenetically placed by its morphlogy, character convergence among crown-giant ecomorphotypes may have driven this potentially incorrect relationship w/ *A. ricordii*.
