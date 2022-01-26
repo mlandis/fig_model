@@ -1,0 +1,204 @@
+#
+# FILENAME: mcmc_FIG.Rev
+#
+# AUTHOR: Michael Landis (michael.landis@wustl.edu)
+#
+# DESCRIPTION:
+#     mcmc_FIG.Rev fits the FIG model to a dataset using Bayesian MCMC
+#  
+# NOTES:
+#     This file reads the input data (tree file, biogeographic data),
+#     builds the FIG model (by calling geo_FIG.Rev and model_FIG.Rev),
+#     creates the appropriate moves and monitors for the model, then
+#     runs the MCMC analysis.
+#
+# CALLED BY:
+#     run_FIG.Rev
+#
+# CALLS:
+#     geo_FIG.Rev
+#     model_FIG.Rev
+#
+
+
+# initialize move and monitor index
+mvi       = 1
+mni       = 1
+
+#-----------#
+# load data #
+#-----------#
+
+# read tree variable
+phy         <- readTrees(phy_fn)[phy_idx]
+
+# collect taxa
+taxa        <- phy.taxa()
+
+# collect number of taxa and branches
+n_taxa      <- taxa.size()
+n_branches  <- 2 * n_taxa - 2
+
+# get tree height
+tree_height <- phy.rootAge()
+
+# read biogeographical data
+dat <- readCharacterDataDelimited(range_fn, type="NaturalNumbers", stateLabels=n_states, delimiter="\t", headers=false)
+
+# add RevBayes code to convert NaturalNumber -> 0/1-Range state labels
+
+
+#------------#
+# load model #
+#------------#
+
+# load FIG geography
+source("geo_FIG.Rev")
+
+# load FIG model
+source("model_FIG.Rev")
+
+print("Clamping tree...")
+# clamp tree & data
+timetree.clamp( phy )
+print("Clamping data...")
+timetree.clampCharData( dat )
+print("...done clamping!")
+
+
+#-----------#
+# set moves #
+#-----------#
+
+# update base rates (rho parameters)
+mv[mvi++] = mvScale( rho_d, weight=4, lambda=0.5 )
+mv[mvi++] = mvScale( rho_e, weight=4, lambda=0.5 )
+mv[mvi++] = mvScale( rho_w, weight=4, lambda=0.5 )
+mv[mvi++] = mvScale( rho_b, weight=4, lambda=0.5 )
+mv[mvi++] = mvScale( rho_d, weight=1, lambda=1.5, tuneTarget=0.10 )
+mv[mvi++] = mvScale( rho_e, weight=1, lambda=1.5, tuneTarget=0.10 )
+mv[mvi++] = mvScale( rho_w, weight=1, lambda=1.5, tuneTarget=0.10 )
+mv[mvi++] = mvScale( rho_b, weight=1, lambda=1.5, tuneTarget=0.10 )
+
+# update other parameters if geographical features are used
+if (use_features) {
+
+    # update feature exponents (psi parameters)
+    mv[mvi++] = mvScale( phi_d, weight=3, lambda=0.5 )
+    mv[mvi++] = mvScale( phi_e, weight=3, lambda=0.5 )
+    mv[mvi++] = mvScale( phi_w, weight=3, lambda=0.5 )
+    mv[mvi++] = mvScale( phi_b, weight=3, lambda=0.5 )
+    mv[mvi++] = mvScale( phi_d, weight=1, lambda=1.0 )
+    mv[mvi++] = mvScale( phi_e, weight=1, lambda=1.0 )
+    mv[mvi++] = mvScale( phi_w, weight=1, lambda=1.0 )
+    mv[mvi++] = mvScale( phi_b, weight=1, lambda=1.0 )
+    mv[mvi++] = mvSlide( phi_d, weight=1, delta=0.3 )
+    mv[mvi++] = mvSlide( phi_e, weight=1, delta=0.3 )
+    mv[mvi++] = mvSlide( phi_w, weight=1, delta=0.3 )
+    mv[mvi++] = mvSlide( phi_b, weight=1, delta=0.3 )
+    mv[mvi++] = mvSlide( phi_d, weight=1, delta=2.0, tuneTarget=0.10 )
+    mv[mvi++] = mvSlide( phi_e, weight=1, delta=2.0, tuneTarget=0.10 )
+    mv[mvi++] = mvSlide( phi_w, weight=1, delta=2.0, tuneTarget=0.10 )
+    mv[mvi++] = mvSlide( phi_b, weight=1, delta=2.0, tuneTarget=0.10 )
+
+    # update categorical scalers (sigma parameters)
+    mv[mvi++] = mvScale( sigma_d, weight=4, lambda=0.5 )
+    mv[mvi++] = mvScale( sigma_e, weight=4, lambda=0.5 )
+    mv[mvi++] = mvScale( sigma_w, weight=4, lambda=0.5 )
+    mv[mvi++] = mvScale( sigma_b, weight=4, lambda=0.5 )
+    mv[mvi++] = mvScale( sigma_d, weight=1, lambda=1.5, tuneTarget=0.10 )
+    mv[mvi++] = mvScale( sigma_e, weight=1, lambda=1.5, tuneTarget=0.10 )
+    mv[mvi++] = mvScale( sigma_w, weight=1, lambda=1.5, tuneTarget=0.10 )
+    mv[mvi++] = mvScale( sigma_b, weight=1, lambda=1.5, tuneTarget=0.10 )
+
+    # reversible-jump MCMC updates (if enabled)
+    if (use_rj) {
+        mv[mvi++] = mvRJSwitch(sigma_d, weight=2)
+        mv[mvi++] = mvRJSwitch(sigma_e, weight=2)
+        mv[mvi++] = mvRJSwitch(sigma_w, weight=2)
+        mv[mvi++] = mvRJSwitch(sigma_b, weight=2)
+        mv[mvi++] = mvRJSwitch(phi_d, weight=2)
+        mv[mvi++] = mvRJSwitch(phi_e, weight=2)
+        mv[mvi++] = mvRJSwitch(phi_w, weight=2)
+        mv[mvi++] = mvRJSwitch(phi_b, weight=2)
+    }
+} else if (!use_features) {
+    phi_d <- 0.
+    phi_e <- 0.
+    phi_w <- 0.
+    phi_b <- 0.
+    sigma_d <- 1.
+    sigma_e <- 1.
+    sigma_w <- 1.
+    sigma_b <- 1.
+}
+
+# variables to monitor RJ preference for simple or complex model
+if (use_rj) {
+    use_phi_d := ifelse( phi_d==0.0, 0, 1 )
+    use_phi_e := ifelse( phi_e==0.0, 0, 1 )
+    use_phi_w := ifelse( phi_w==0.0, 0, 1 )
+    use_phi_b := ifelse( phi_b==0.0, 0, 1 )
+    use_sigma_d := ifelse( sigma_d==1.0, 0, 1 )
+    use_sigma_e := ifelse( sigma_e==1.0, 0, 1 )
+    use_sigma_w := ifelse( sigma_w==1.0, 0, 1 )
+    use_sigma_b := ifelse( sigma_b==1.0, 0, 1 )
+}
+
+
+#--------------#
+# set monitors #
+#--------------#
+
+mn[mni++] = mnScreen( rho_d, rho_e, rho_w, rho_b, phi_d, phi_e, phi_w, phi_b, printgen=print_gen )
+mn[mni++] = mnModel(printgen=print_gen, filename=output_prefix+".model.log")
+mn[mni++] = mnFile( printgen=print_gen, filename=output_prefix+".geo_features.log",
+                    m_e,
+                    m_w,
+                    m_d[1], m_d[2], m_d[3], m_d[4], m_d[5], m_d[6], m_d[7], m_d[8], m_d[9], 
+                    m_b[1], m_b[2], m_b[3], m_b[4], m_b[5], m_b[6], m_b[7], m_b[8], m_b[9] )
+
+if (make_anc) {
+    mn[mni++] = mnJointConditionalAncestralState( glhbdsp=timetree,
+                                                  tree=timetree,
+                                                  printgen=print_gen*10,
+                                                  filename=output_prefix+".states.log",
+                                                  withTips=true,
+                                                  withStartStates=true,
+                                                  type="NaturalNumbers" )
+
+    mn[mni++] = mnStochasticCharacterMap( glhbdsp=timetree, 
+                                          printgen=print_gen*10,
+                                          filename=output_prefix+".stoch.log",
+                                          use_simmap_default=false )
+}
+
+#------------------------#
+# save analysis settings #
+#------------------------#
+
+# save tree with RevBayes node-indexing to output
+write( timetree, filename=output_prefix+".tre" )
+
+
+#-------------#
+# build model #
+#-------------#
+print("Building model")
+mdl = model(rho_d)
+
+#--------------#
+# run analysis #
+#--------------#
+print("Building MCMC")
+ch = mcmc( mv, mn, mdl )
+
+print("Running MCMC")
+if (use_tune == true) {
+    ch.burnin(n_burn, tuningInterval=10)
+}
+ch.run(n_gen)
+
+# done!
+quit()
+
