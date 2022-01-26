@@ -1,0 +1,38 @@
+# Location of tree files
+out_fp = "../../output/anolis/"
+#dat_fp = "../../data/anolis/"
+fn     = "out"
+#fn = "anolis_nr9_ns383.seed_108735"
+
+# Output tree files already have burnin removed and iterations reindexed, starting from 0
+f_burn = 0.2
+
+print("Processing output for fn = \"" + fn + "\"")
+print("--> Reading tree trace file")
+mcc_tree = readTrees(out_fp+fn+".tre")[1]
+
+# create a file that contains a Newick tree with ancestral range estimate annotations
+print("--> Reading ancestral state trace file")
+state_trace = readAncestralStateTrace(file=out_fp+fn+".states.log", separator="\t")
+
+print("--> Building ancestral range estimates (this can take a while)")
+bg_tree = ancestralStateTree(tree=mcc_tree,
+                   ancestral_state_trace_vector=state_trace,
+                   include_start_states=true,
+                   file=out_fp+fn+".ase_marginal.tre",
+                   summary_statistic="MAP",
+                   reconstruction="marginal",
+                   burnin=f_burn,
+                   nStates=3,
+                   site=1)
+
+# create a file that summarizes the sampled stochastically mapped transitions
+print("--> Building stochastic mapping file")
+summarizeCharacterMaps(tree=mcc_tree,
+                       character_map_trace_vector=stoch_trace,
+                       out_fp+fn+".history.tsv",
+                       burnin=f_burn)
+
+print("...done!")
+
+quit()
