@@ -693,8 +693,8 @@ plot_ancestral_states = function(tree_file,
             state_labels[[ as.character( length(state_labels) ) ]] = "misc."
             #names(state_colors)[misc_idx] = "misc."
             
-            print(state_colors)
-            print(length(state_colors))
+            #print(state_colors)
+            #print(length(state_colors))
             print(length(state_labels))
             #print(state_labels)
             #print(used_states)
@@ -703,24 +703,8 @@ plot_ancestral_states = function(tree_file,
         }
         p = p + theme(legend.position="left")
         
-        # # MJL: to remove later
-        # break_legend = F
-        # if (break_legend) {
-        #     p$data$x = p$data$x + (15 - max(p$data$x))
-        #     x_breaks = 0:15
-        #     x_labels = rep("", 16)
-        #     x_labels[ c(0,5,10,15)+1 ] = c(0,5,10,15)
-        #     p = p + scale_x_continuous(breaks = x_breaks, labels = rev(x_labels), sec.axis = sec_axis(~ ., breaks = 15-c(6.15, 4.15, 2.55, 1.2), labels=c("+K","+O","+M","+H") ))
-        #     p = p + theme_tree2()
-        #     p = p + coord_cartesian(xlim = c(0,20), expand=TRUE)
-        #     p = p + labs(x="Age (Ma)")
-        #     p = add_island_times(p)
-        #     p = p + theme(legend.position="left", axis.line = element_line(colour = "black"))
-        #     p = p + guides(colour = guide_legend(override.aes = list(size=5), nrow=6))
-        # }
             
         # get anc state matrices (for pie/bar charts)
-        #print(t)
         dat_state_end = build_state_probs(t, state_labels, include_start_states)$end
         dat_state_start = build_state_probs(t, state_labels, include_start_states)$start
         
@@ -735,12 +719,6 @@ plot_ancestral_states = function(tree_file,
         pies_start = nodepie(dat_state_start,cols=1:(ncol(dat_state_start)-1),color=state_colors,alpha=alpha)
         
         pd = c( rep(tip_pie_diameter, n_tips), rep(node_pie_diameter, n_nodes-n_tips) )
-        
-        #n_expr = options()$expressions
-        #options(expressions=n_expr * 2)
-        
-       
-        
      
         p_node =  inset.revgadgets(tree_view=p,
                             insets=pies_end[all_idx],

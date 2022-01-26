@@ -1,30 +1,39 @@
-#library(RevGadgets)
+# libraries
 library(cowplot)
 library(ggtree)
 library(treeio)
 library(ggimage)
 
+# helper functions
+source("plot_functions.R")
 source("plot_ancestral_states.R")
-#source("/Users/mlandis/projects/gh_vib_div/code/plot/vib_div_util.R")
-
-# add simmap to margin?
-plot_simmap = !TRUE
-
-#reg_lbl = c('NCAmU', 'CAmL','ChCa','And','Amaz','LAntPR', 'CuJmCy', 'Hisp', 'Bah')
-reg_lbl = LETTERS[1:9]
-num_reg = 9; num_states=255; fn = "out"
 
 # Files
 fp = "../../"
-out_str = "anolis_nr9_ns383.seed_108735"; iterations = 1000 + (0:5)*10
-dat_fp = paste0(fp, "data/anolis/")
-out_fp = paste(fp, "output/anolis/", sep="")
+out_str = "out"
+dat_fp  = paste0(fp, "data/anolis/")
+out_fp  = paste(fp, "output/anolis/", sep="")
 plot_fp = paste(fp, "code/plot/", sep="")
 tree_fn = paste(out_fp, out_str, ".ase_marginal.tre", sep="")
 plot_fn = paste(plot_fp, "fig_", out_str,".ase_marginal.pdf",sep="")
-lbl_fn = paste0(fp, "code/plot/state_labels_n", num_reg, ".txt")
-dat_fn = paste0(dat_fp, "anolis_nr9_ns383.range_table.tsv")
+lbl_fn  = paste0(fp, "code/plot/state_labels_n", num_reg, ".txt")
+dat_fn  = paste0(dat_fp, "anolis_nr9_ns383.range_table.tsv")
 
+# other info
+num_reg = 9; num_states=255
+reg_lbl = LETTERS[1:9]
+long_names =
+"A: NA+Upper CA
+B: Lower CA
+C: Chocó+Caribe
+D: Andes
+E: Amazonia
+F: LA+PR        
+G: Cuba+Cay.+Jam.
+H: Hispaniola
+I: Bahamas"
+
+# read and format tip data
 tip_dat = read.csv(dat_fn, sep=",", header=T, row.names=1, colClasses=c("character"))
 for (i in 1:nrow(tip_dat)) {
     for (j in 1:ncol(tip_dat)) {
@@ -40,17 +49,16 @@ for (i in 1:ncol(tip_dat)) {
 colnames(tip_dat)=reg_lbl
 tip_dat = data.frame(tip_dat)
 
-
-
-# get tree
+# read tree
 phy = read.nexus(tree_fn)
 phy_state = read.beast(tree_fn)
 
-# files
+# read and format region label information
 dat_lbl_raw = read.csv( lbl_fn, sep="\t",  colClasses=c('character'), header=F )[ 1:num_states, 2]
 dat_lbl = sapply( dat_lbl_raw, function(x) { bitstr_to_regset(x, reg_lbl)  })
 names(dat_lbl) = NULL
 
+# what states are used in the ancestral state tree?
 used_states = get_used_states(phy_state, dat_lbl_raw)
 #num_used_states = length(used_states) 
 st_lbl = list()
@@ -135,16 +143,6 @@ p2 = p2 + guides(colour=guide_legend(title="Range", override.aes=list(size=2)))
 p2 = add_epoch_times(p2, x_new_root,  dy_bars=-7, dy_text=-3)
 
 pq = p2
-long_names =
-"A: NA+Upper CA
-B: Lower CA
-C: Chocó+Caribe
-D: Andes
-E: Amazonia
-F: LA+PR        
-G: Cuba+Cay.+Jam.
-H: Hispaniola
-I: Bahamas"
 p2 = p2 + annotate(geom="text", label=long_names,  x=-20, y=315, hjust=0)
 
 
