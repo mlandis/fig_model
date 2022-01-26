@@ -1,61 +1,13 @@
 library(HDInterval)
 library(data.table)
 
-gm = function(x) {
-    n = length(x[ !is.na(x)])
-    z = prod(x, na.rm=T)
-    return(z^(1/n))
-}
-
-make_w = function(a_c, a_d, beta=0, sigma=1) {
-    idx = which(a_d==0)
-    a_c[idx] = a_c[idx] * sigma
-    a_c = ( a_c / gm(a_c) )^beta
-    return(a_c)
-}
-
-make_b = function(b_c, b_d, beta=0, sigma=1) {
-    idx = which(b_d==0)
-    b_c[idx] = b_c[idx] * sigma
-    b_c = ( b_c / gm(b_c) )^beta
-    return(b_c)
-}
-
-mycircle <- function(coords, v=NULL, params) {
-  vertex.color <- params("vertex", "color")
-  if (length(vertex.color) != 1 && !is.null(v)) {
-    vertex.color <- vertex.color[v]
-  }
-  vertex.frame.lty  <- params("vertex", "lty")
-    if (length(vertex.frame.lty) != 1 && !is.null(v)) {
-      vertex.frame.lty <- vertex.frame.lty[v]
-  }
-  vertex.size  <- 1/200 * params("vertex", "size")
-  if (length(vertex.size) != 1 && !is.null(v)) {
-    vertex.size <- vertex.size[v]
-  }
-  vertex.frame.color <- params("vertex", "frame.color")
-  if (length(vertex.frame.color) != 1 && !is.null(v)) {
-    vertex.frame.color <- vertex.frame.color[v]
-  }
-  vertex.frame.width <- params("vertex", "frame.width")
-  if (length(vertex.frame.width) != 1 && !is.null(v)) {
-    vertex.frame.width <- vertex.frame.width[v]
-  }
-  mapply(coords[,1], coords[,2], vertex.color, vertex.frame.color,
-         vertex.size, vertex.frame.width, vertex.frame.lty,
-         FUN=function(x, y, bg, fg, size, lwd, lty) {
-           symbols(x=x, y=y, bg=bg, fg=fg, lwd=lwd, lty=lty,
-                   circles=size, add=TRUE, inches=FALSE)
-         })
-}
 
 make_m1 = function(d, nn) {
     nr = length(nn)
     ret = list()
     colnames(d) = nn
     xm = sapply(d, median)
-    h = apply(d, 2, HDInterval::hdi) #  function(z) {  hdi(z, allowSplit=F) })
+    h = apply(d, 2, HDInterval::hdi)
     xl = h[1,]
     xu = h[2,]
     ret = list( median=xm, lower=xl, upper=xu)
@@ -66,7 +18,7 @@ make_m2 = function(d, nn) {
     nr = length(nn)
     ret = list()
     xm = matrix( sapply(d, median), byrow=T, nrow=nr)
-    xm = ( xm + t(xm) ) / 2 # mean
+    xm = ( xm + t(xm) ) / 2
     h = apply(d, 2, HDInterval::hdi)
     xl = matrix( h[1,], byrow=T, nrow=nr ) 
     xu = matrix( h[2,], byrow=T, nrow=nr )
@@ -78,80 +30,6 @@ make_m2 = function(d, nn) {
     return(ret)
 }
 
-make_FIG_rate_graph = function(a, fn,
-    colors=NULL,
-    coords=NULL,
-    node_order = NULL,
-    node_size=20,
-    node_frame_size = 1,
-    edge_size=1,
-    prop_size=T,
-    add=F) {
-    
-    # make graph
-    g = graph_from_adjacency_matrix(a, weighted=T, mode="undirected", diag=FALSE)
-    
-    # set colors
-    node_colors="black"
-    edge_colors="black"
-    if (!is.null(colors)) {
-        node_colors = diag(colors)
-        edge_colors = c() #colors[ upper.tri(colors) ]
-        for (i in 1:nrow(colors)) {
-            for (j in i:ncol(colors)) {
-                if (j > i) {
-                    edge_colors = c( edge_colors, colors[i,j] )
-                }
-            }
-        }
-    }
-    
-    # set layout
-    if (is.null(node_order)) {
-        node_order = 1:nrow(a)
-    }
-    if (is.null(coords)) {
-        coords <- layout.circle(g, node_order)
-    }
-    g$layout = coords
-    
-    # set graph object sizes
-    V(g)$size               = node_size #* diag(a) / median(diag(a))
-    V(g)$vertex.frame.width = node_frame_size * 2 * diag(a) / mean(diag(a))
-    E(g)$weight             = edge_size * 1 * E(g)$weight / mean(E(g)$weight)
- 
-    # set graph object colors
-    V(g)$color = node_colors
-    E(g)$color = edge_colors
-    
-    # make plot
-    if (!add) {
-        pdf(height=3.25, width=3.25, file=fn)
-        par(mar = rep(0.5, 4))
-    }
-    
-    plot.igraph(g,
-        vertex.shape="fcircle",
-        vertex.color="white",
-        vertex.size=V(g)$size,
-        vertex.frame.width=V(g)$vertex.frame.width,
-        vertex.frame.color=V(g)$color,
-        vertex.lty=1,
-        vertex.label=V(g)$name,
-        vertex.label.color=V(g)$color,
-        vertex.label.cex=0.55,
-        vertex.label.family="Helvetica",
-        edge.width=E(g)$weight,
-        edge.color=adjustcolor( E(g)$color, alpha=0.6 ),
-        edge.label.family="Helvetica",
-        edge.label.color="black",
-        add=add)
-    
-    if (!add) {
-        dev.off()
-    }
-}
-    
 make_region_code_matrix = function( x ) {
     n = length(x)
     m = matrix(NA, nrow=n, ncol=n)
@@ -173,7 +51,8 @@ make_plot_dat = function( dat_mdl, dat_geo, num_regions ) {
     
     list_idx = 1
     dat_plot_list = list()
-    
+   
+    # restructure primary metrics
     for (i in 1:nrow(dat_mdl)) {
         
         df = data.frame()
@@ -191,31 +70,21 @@ make_plot_dat = function( dat_mdl, dat_geo, num_regions ) {
             s_e_j = paste0( "m_e.", j, "." )
             m_e_j = dat_geo_i[[ s_e_j ]]
             for (k in 1:num_regions) {
-                #if (j != k) {
-                    s_b_jk = paste0( "m_b.", j, "..", k, "." )
-                    m_b_jk = dat_geo_i[[ s_b_jk ]]
-                    s_d_jk = paste0( "m_d.", j, "..", k, "." )
-                    m_d_jk = dat_geo_i[[ s_d_jk ]]
-                    tmp = c(idx, j, k, rho_w, rho_e, rho_b, rho_d, m_w_j, m_e_j, m_b_jk, m_d_jk )
-                    df = rbind(df, tmp)
-                    #names(tmp) =  c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
-                    
-                    #dat_plot_list[[list_idx]] = data.table( t(c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk )) )
-                    
-                    #dat_plot = rbind( dat_plot, c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk ))
-                #}
+                s_b_jk = paste0( "m_b.", j, "..", k, "." )
+                m_b_jk = dat_geo_i[[ s_b_jk ]]
+                s_d_jk = paste0( "m_d.", j, "..", k, "." )
+                m_d_jk = dat_geo_i[[ s_d_jk ]]
+                tmp = c(idx, j, k, rho_w, rho_e, rho_b, rho_d, m_w_j, m_e_j, m_b_jk, m_d_jk )
+                df = rbind(df, tmp)
             }
         }
         colnames(df) = c("iteration", "from_region", "to_region", "rho_w", "rho_e", "rho_b", "rho_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
-        #print(list_idx)
         dat_plot_list[[list_idx]] = df
         list_idx = list_idx + 1
     }
-    #return(dat_plot_list)
     dat_plot = rbindlist(dat_plot_list)
-    #colnames(dat_plot) = c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
-    
-    print("A")
+   
+    # generate secondary metrics
     dat_plot$m_d_ij[ dat_plot$m_d_ij == Inf ] = 0
     dat_plot$m_b_ij[ dat_plot$m_b_ij == Inf ] = 0
     dat_plot$m_w_i[ dat_plot$m_w_i == Inf ] = 0
@@ -224,119 +93,29 @@ make_plot_dat = function( dat_mdl, dat_geo, num_regions ) {
     dat_plot$r_b_ij = dat_plot$rho_b*dat_plot$m_b_ij
     dat_plot$r_w_i = dat_plot$rho_w*dat_plot$m_w_i 
     dat_plot$r_e_i = dat_plot$rho_e*dat_plot$m_e_i
-    print("B")
     dat_plot$insular = (dat_plot$from_region >= 6) | (dat_plot$to_region >= 6)
     dat_plot$we_ratio = dat_plot$r_w_i / dat_plot$r_e_i
     dat_plot$bd_ratio = dat_plot$r_b_ij / dat_plot$r_d_ij
     dat_plot$dist_ij = 0
     dat_plot$size_i = 0
-    print("C")
-    #return(dat_plot)
     
     # note, flattened matrix access is column first, row second!
     from_region = dat_plot$from_region
     to_region = dat_plot$to_region
     from_to_region = (to_region-1)*nrow(dat_dist) + from_region
-    
-    for (i in 1:nrow(dat_dist)) {
-        for (j in 1:ncol(dat_dist)) {
-            k = (j-1)*nrow(dat_dist) + i
-            cat(i, j, k, dat_dist[i,j], as.matrix(dat_dist)[k], "\n" )
-        }
-    }
+    #for (i in 1:nrow(dat_dist)) {
+    #    for (j in 1:ncol(dat_dist)) {
+    #        k = (j-1)*nrow(dat_dist) + i
+    #        cat(i, j, k, dat_dist[i,j], as.matrix(dat_dist)[k], "\n" )
+    #    }
+    #}
     
     dat_plot$dist_ij = as.matrix(dat_dist)[ from_to_region ]
-    #dist_tmp = dat_dist[ from_region, ]
     dat_plot$size_i = dat_size[from_region]
-    # for (i in 1:nrow(dat_plot)) {
-    #     src = dat_plot$from_region[i]
-    #     dst = dat_plot$to_region[i]
-    #     dat_plot$dist_ij[i] = dat_dist[src,dst]
-    #     dat_plot$size_i[i] = dat_size[src]
-    # }
-    print("D")
-    #return(from_to_region)
     return(dat_plot)   
 }
 
-
-make_plot_dat_old = function( dat_mdl, dat_geo, num_regions ) {
-    # process input data
-    dat_plot = data.frame()
-
-    for (i in 1:nrow(dat_mdl)) {
-        
-        df = data.frame()
-        
-        dat_mdl_i = dat_mdl[i,]
-        idx = dat_mdl_i$Iteration
-        dat_geo_i = dat_geo[dat_geo$Iteration==idx, ]
-        r_d = dat_mdl_i$r_d
-        r_b = dat_mdl_i$r_b
-        r_w = dat_mdl_i$r_w
-        r_e = dat_mdl_i$r_e
-        for (j in 1:num_regions) {
-            s_w_j = paste0( "m_w.", j, "." )
-            m_w_j = dat_geo_i[[ s_w_j ]]
-            s_e_j = paste0( "m_e.", j, "." )
-            m_e_j = dat_geo_i[[ s_e_j ]]
-            for (k in 1:num_regions) {
-                #if (j != k) {
-                    s_b_jk = paste0( "m_b.", j, "..", k, "." )
-                    m_b_jk = dat_geo_i[[ s_b_jk ]]
-                    s_d_jk = paste0( "m_d.", j, "..", k, "." )
-                    m_d_jk = dat_geo_i[[ s_d_jk ]]
-                    # tmp = c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk )
-                    # df = rbind(df, tmp)
-                    # #names(tmp) =  c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
-                    # 
-                    # #dat_plot_list[[list_idx]] = data.table( t(c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk )) )
-                    # 
-                    dat_plot = rbind( dat_plot, c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk ))
-                #}
-            }
-        }
-        #colnames(df) = c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
-        #print(list_idx)
-        #dat_plot_list[[list_idx]] = df
-        #list_idx = list_idx + 1
-    }
-    #return(dat_plot_list)
-    #dat_plot = rbindlist(dat_plot_list)
-    colnames(dat_plot) = c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
-    
-    print("A")
-    
-    dat_plot$r_d_ij = dat_plot$r_d*dat_plot$m_d_ij 
-    dat_plot$r_b_ij = dat_plot$r_b*dat_plot$m_b_ij
-    dat_plot$r_w_i = dat_plot$r_w*dat_plot$m_w_i 
-    dat_plot$r_e_i = dat_plot$r_e*dat_plot$m_e_i
-    print("B")
-    dat_plot$insular = (dat_plot$from_region >= 6) | (dat_plot$to_region >= 6)
-    dat_plot$we_ratio = dat_plot$r_w_i / dat_plot$r_e_i
-    dat_plot$bd_ratio = dat_plot$r_b_ij / dat_plot$r_d_ij
-    dat_plot$dist_ij = 0
-    dat_plot$size_i = 0
-    print("C")
-    #return(dat_plot)
-    # 
-    # from_region = dat_plot$from_region
-    # from_to_region = (nrow(dat_dist)-1)*from_region + dat_plot$to_region
-    # 
-    # dat_plot$dist_ij = as.matrix(dat_dist)[ from_to_region ]
-    # #dist_tmp = dat_dist[ from_region, ]
-    # dat_plot$size_i = dat_size[from_region]
-    for (i in 1:nrow(dat_plot)) {
-        src = dat_plot$from_region[i]
-        dst = dat_plot$to_region[i]
-        dat_plot$dist_ij[i] = dat_dist[src,dst]
-        dat_plot$size_i[i] = dat_size[src]
-    }
-    print("D")
-    #return(from_to_region)
-    return(dat_plot)   
-}
-
+# generates Bayesian stats from trace samples
 make_plot_dat2 = function(dat_plot) {
     
     dat_plot_2 = dat_plot %>% group_by(from_region, to_region)  %>%
@@ -375,12 +154,9 @@ make_plot_dat2 = function(dat_plot) {
     }
     dat_plot_2$lbl = lbl2
     
-    
-    
     dat1 = dat_plot_2[ dat_plot_2$from_region < dat_plot_2$to_region, ]
     dat2 = dat_plot_2[ dat_plot_2$from_region >= dat_plot_2$to_region, ]
     dat12 = rbind(dat1, dat2)
-    
     
     dat12$dist_ij = rep(0, nrow(dat12))
     dat12$size_i  = rep(0, nrow(dat12))
@@ -495,8 +271,6 @@ summarize_lm_dat = function(df_lm) {
                      log10_median=as.numeric(ret[,3]),
                      log10_lower=as.numeric(ret[,4]),
                      log10_upper=as.numeric(ret[,5]) )
-    #colnames(ret) = c("type","ratio","log10_median","log10_lower","log10_upper")
-    #ret[,3:5] = as.numeric( ret[,3:5] )
     return(df)   
 }
 
@@ -560,12 +334,12 @@ bitstr_to_regset = function(s,n) {
     return(rs)
 }
 
-# process states and ranges
+
+# identify states and ranges that should be represented by ancestral range plot
 get_used_states = function(phy, bitset) {
     dat = phy@data[, c("end_state_1", "end_state_2", "end_state_3", "start_state_1", "start_state_2", "start_state_3")]
     vec = as.numeric( unlist(dat) )
     vec = sort(unique(vec[ !is.na(vec) ]))
-    #print(vec)
     
     # container for ranges sorted by # regions
     n_reg = length( strsplit( bitset[ vec[1]+1 ], split="" )[[1]] )
@@ -578,17 +352,14 @@ get_used_states = function(phy, bitset) {
         range_n = vec[i] + 1 # convert to base-1 range-states
         range_01 = bitset[ range_n ]
         idx = sum( as.numeric( strsplit( range_01, split="" )[[1]] ) )
-        #print(idx)
         ret[[idx]] = c( ret[[idx]], range_n )
     }
     
     return(ret)
-    #return(sort(unique(vec)))
 }
 
 
-
-# adds epoch boxes to plots
+# adds epoch boxes to ancestral range plot
 add_epoch_times <- function( p, max_age, dy_bars, dy_text ) {
     
     max_x = max(p$data$x)
@@ -633,3 +404,219 @@ t_col <- function(color, percent = 50, name = NULL) {
     ## Save the color
     invisible(t.col)
 }
+
+# not used?
+gm = function(x) {
+    n = length(x[ !is.na(x)])
+    z = prod(x, na.rm=T)
+    return(z^(1/n))
+}
+
+# code graveyard
+if (FALSE) {
+    make_plot_dat_old = function( dat_mdl, dat_geo, num_regions ) {
+        # process input data
+        dat_plot = data.frame()
+
+        for (i in 1:nrow(dat_mdl)) {
+            
+            df = data.frame()
+            
+            dat_mdl_i = dat_mdl[i,]
+            idx = dat_mdl_i$Iteration
+            dat_geo_i = dat_geo[dat_geo$Iteration==idx, ]
+            r_d = dat_mdl_i$r_d
+            r_b = dat_mdl_i$r_b
+            r_w = dat_mdl_i$r_w
+            r_e = dat_mdl_i$r_e
+            for (j in 1:num_regions) {
+                s_w_j = paste0( "m_w.", j, "." )
+                m_w_j = dat_geo_i[[ s_w_j ]]
+                s_e_j = paste0( "m_e.", j, "." )
+                m_e_j = dat_geo_i[[ s_e_j ]]
+                for (k in 1:num_regions) {
+                    #if (j != k) {
+                        s_b_jk = paste0( "m_b.", j, "..", k, "." )
+                        m_b_jk = dat_geo_i[[ s_b_jk ]]
+                        s_d_jk = paste0( "m_d.", j, "..", k, "." )
+                        m_d_jk = dat_geo_i[[ s_d_jk ]]
+                        # tmp = c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk )
+                        # df = rbind(df, tmp)
+                        # #names(tmp) =  c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
+                        # 
+                        # #dat_plot_list[[list_idx]] = data.table( t(c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk )) )
+                        # 
+                        dat_plot = rbind( dat_plot, c(idx, j, k, r_w, r_e, r_b, r_d, m_w_j, m_e_j, m_b_jk, m_d_jk ))
+                    #}
+                }
+            }
+            #colnames(df) = c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
+            #print(list_idx)
+            #dat_plot_list[[list_idx]] = df
+            #list_idx = list_idx + 1
+        }
+        #return(dat_plot_list)
+        #dat_plot = rbindlist(dat_plot_list)
+        colnames(dat_plot) = c("iteration", "from_region", "to_region", "r_w", "r_e", "r_b", "r_d", "m_w_i", "m_e_i", "m_b_ij", "m_d_ij")
+        
+        #print("A")
+        
+        dat_plot$r_d_ij = dat_plot$r_d*dat_plot$m_d_ij 
+        dat_plot$r_b_ij = dat_plot$r_b*dat_plot$m_b_ij
+        dat_plot$r_w_i = dat_plot$r_w*dat_plot$m_w_i 
+        dat_plot$r_e_i = dat_plot$r_e*dat_plot$m_e_i
+        #print("B")
+        dat_plot$insular = (dat_plot$from_region >= 6) | (dat_plot$to_region >= 6)
+        dat_plot$we_ratio = dat_plot$r_w_i / dat_plot$r_e_i
+        dat_plot$bd_ratio = dat_plot$r_b_ij / dat_plot$r_d_ij
+        dat_plot$dist_ij = 0
+        dat_plot$size_i = 0
+        #print("C")
+        #return(dat_plot)
+        # 
+        # from_region = dat_plot$from_region
+        # from_to_region = (nrow(dat_dist)-1)*from_region + dat_plot$to_region
+        # 
+        # dat_plot$dist_ij = as.matrix(dat_dist)[ from_to_region ]
+        # #dist_tmp = dat_dist[ from_region, ]
+        # dat_plot$size_i = dat_size[from_region]
+        for (i in 1:nrow(dat_plot)) {
+            src = dat_plot$from_region[i]
+            dst = dat_plot$to_region[i]
+            dat_plot$dist_ij[i] = dat_dist[src,dst]
+            dat_plot$size_i[i] = dat_size[src]
+        }
+        #print("D")
+        #return(from_to_region)
+        return(dat_plot)   
+    }
+}
+
+if (FALSE) {
+    make_FIG_rate_graph = function(a, fn,
+        colors=NULL,
+        coords=NULL,
+        node_order = NULL,
+        node_size=20,
+        node_frame_size = 1,
+        edge_size=1,
+        prop_size=T,
+        add=F) {
+        
+        # make graph
+        g = graph_from_adjacency_matrix(a, weighted=T, mode="undirected", diag=FALSE)
+        
+        # set colors
+        node_colors="black"
+        edge_colors="black"
+        if (!is.null(colors)) {
+            node_colors = diag(colors)
+            edge_colors = c() #colors[ upper.tri(colors) ]
+            for (i in 1:nrow(colors)) {
+                for (j in i:ncol(colors)) {
+                    if (j > i) {
+                        edge_colors = c( edge_colors, colors[i,j] )
+                    }
+                }
+            }
+        }
+        
+        # set layout
+        if (is.null(node_order)) {
+            node_order = 1:nrow(a)
+        }
+        if (is.null(coords)) {
+            coords <- layout.circle(g, node_order)
+        }
+        g$layout = coords
+        
+        # set graph object sizes
+        V(g)$size               = node_size #* diag(a) / median(diag(a))
+        V(g)$vertex.frame.width = node_frame_size * 2 * diag(a) / mean(diag(a))
+        E(g)$weight             = edge_size * 1 * E(g)$weight / mean(E(g)$weight)
+     
+        # set graph object colors
+        V(g)$color = node_colors
+        E(g)$color = edge_colors
+        
+        # make plot
+        if (!add) {
+            pdf(height=3.25, width=3.25, file=fn)
+            par(mar = rep(0.5, 4))
+        }
+        
+        plot.igraph(g,
+            vertex.shape="fcircle",
+            vertex.color="white",
+            vertex.size=V(g)$size,
+            vertex.frame.width=V(g)$vertex.frame.width,
+            vertex.frame.color=V(g)$color,
+            vertex.lty=1,
+            vertex.label=V(g)$name,
+            vertex.label.color=V(g)$color,
+            vertex.label.cex=0.55,
+            vertex.label.family="Helvetica",
+            edge.width=E(g)$weight,
+            edge.color=adjustcolor( E(g)$color, alpha=0.6 ),
+            edge.label.family="Helvetica",
+            edge.label.color="black",
+            add=add)
+        
+        if (!add) {
+            dev.off()
+        }
+    }
+}
+  
+
+if (F) {
+
+
+    make_w = function(a_c, a_d, beta=0, sigma=1) {
+        idx = which(a_d==0)
+        a_c[idx] = a_c[idx] * sigma
+        a_c = ( a_c / gm(a_c) )^beta
+        return(a_c)
+    }
+
+    make_b = function(b_c, b_d, beta=0, sigma=1) {
+        idx = which(b_d==0)
+        b_c[idx] = b_c[idx] * sigma
+        b_c = ( b_c / gm(b_c) )^beta
+        return(b_c)
+    }
+}
+
+if (F) {
+
+
+    mycircle <- function(coords, v=NULL, params) {
+      vertex.color <- params("vertex", "color")
+      if (length(vertex.color) != 1 && !is.null(v)) {
+        vertex.color <- vertex.color[v]
+      }
+      vertex.frame.lty  <- params("vertex", "lty")
+        if (length(vertex.frame.lty) != 1 && !is.null(v)) {
+          vertex.frame.lty <- vertex.frame.lty[v]
+      }
+      vertex.size  <- 1/200 * params("vertex", "size")
+      if (length(vertex.size) != 1 && !is.null(v)) {
+        vertex.size <- vertex.size[v]
+      }
+      vertex.frame.color <- params("vertex", "frame.color")
+      if (length(vertex.frame.color) != 1 && !is.null(v)) {
+        vertex.frame.color <- vertex.frame.color[v]
+      }
+      vertex.frame.width <- params("vertex", "frame.width")
+      if (length(vertex.frame.width) != 1 && !is.null(v)) {
+        vertex.frame.width <- vertex.frame.width[v]
+      }
+      mapply(coords[,1], coords[,2], vertex.color, vertex.frame.color,
+             vertex.size, vertex.frame.width, vertex.frame.lty,
+             FUN=function(x, y, bg, fg, size, lwd, lty) {
+               symbols(x=x, y=y, bg=bg, fg=fg, lwd=lwd, lty=lty,
+                       circles=size, add=TRUE, inches=FALSE)
+             })
+    }
+}
+
