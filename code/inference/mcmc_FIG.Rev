@@ -43,7 +43,7 @@ n_branches  <- 2 * n_taxa - 2
 tree_height <- phy.rootAge()
 
 # read biogeographical data
-dat <- readCharacterDataDelimited(range_fn, type="NaturalNumbers", stateLabels=n_states, delimiter="\t", headers=false)
+dat <- readCharacterDataDelimited(range_fn, type="NaturalNumbers", stateLabels=n_states, delimiter="\t", header=false)
 
 # add RevBayes code to convert NaturalNumber -> 0/1-Range state labels
 
