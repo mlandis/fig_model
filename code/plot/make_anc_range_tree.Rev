@@ -26,6 +26,10 @@ bg_tree = ancestralStateTree(tree=mcc_tree,
                    nStates=3,
                    site=1)
 
+# create a file that contains a Newick tree with ancestral range estimate annotations
+print("--> Reading stochastic mapping trace file")
+stoch_trace = readAncestralStateTrace(file=out_fp+fn+".stoch.log", separator="\t")
+
 # create a file that summarizes the sampled stochastically mapped transitions
 print("--> Building stochastic mapping file")
 summarizeCharacterMaps(tree=mcc_tree,
